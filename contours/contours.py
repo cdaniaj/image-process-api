@@ -38,25 +38,59 @@ def get_central_contour(contours, img_shape):
             
     return melhor_contorno
 
-
-def get_contours_data(contours, img_shape):
-    # Agora passamos o shape da imagem para achar o centro
-    contorno_final = get_central_contour(contours, img_shape)
     
-    if contorno_final is None:
-        raise ValueError("Nenhum contorno válido encontrado próximo ao centro.")
-
+def get_interface_contour_data(contorno_final):
     area_final = cv.contourArea(contorno_final)
     hull = cv.convexHull(contorno_final)
     hull_area = cv.contourArea(hull)
     solidity = area_final / hull_area if hull_area > 0 else 0
     perimetro = cv.arcLength(contorno_final, True)
     circularidade = (4 * np.pi * area_final) / (perimetro**2) if perimetro > 0 else 0
-    
+
     return {
-        "area": area_final * 0.01,  # Convertendo para mm²
-        "perimetro": perimetro * 0.1,  # Convertendo para mm
+        "area": area_final,
+        "perimeter": perimetro,
         "circularity": circularidade,
-        "solidity": solidity,
-        "max_contour": contorno_final # Mantivemos o nome da chave para não quebrar seu main
+        "solidity": solidity
+    }
+    
+def get_train_contour_data(contorno_final):
+    # 1. Área e Perímetro (Base para tudo)
+    area_final = cv.contourArea(contorno_final)
+    perimetro = cv.arcLength(contorno_final, True)
+    
+    # 2. Compactness (Fórmula do Dataset: perimeter^2 / area - 1.0)
+    # Nota: No dataset, isso mede a irregularidade. 
+    compactness = (perimetro**2 / (area_final)) - 1.0 if area_final > 0 else 0
+    
+    # 3. Concavity (Mapeado via Solidez)
+    # O dataset mede concavidade. No OpenCV, a solidez é o oposto.
+    hull = cv.convexHull(contorno_final)
+    hull_area = cv.contourArea(hull)
+    solidity = area_final / hull_area if hull_area > 0 else 0
+    concavity = 1 - solidity # Aproximação para bater com o dataset
+    
+    # 4. Radius Mean (Raio médio aproximado)
+    (x, y), radius = cv.minEnclosingCircle(contorno_final)
+
+    return {
+       "radius_mean": radius,
+        "perimeter_mean": perimetro,
+        "area_mean": area_final,
+        "compactness_mean": compactness,
+        "concavity_mean": concavity,
+        "max_contour": contorno_final
+    }
+
+def get_contours_data(contours, img_shape):
+    contorno_final = get_central_contour(contours, img_shape)
+    
+    if contorno_final is None:
+        raise ValueError("Nenhum contorno válido encontrado.")
+
+    get_train_data = get_train_contour_data(contorno_final)
+    get_interface_data = get_interface_contour_data(contorno_final)
+    return {
+        "train_data": get_train_data,
+        "interface_data": get_interface_data
     }
