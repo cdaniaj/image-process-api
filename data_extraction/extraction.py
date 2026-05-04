@@ -1,8 +1,12 @@
 import pandas as pd
 import os
 
+# Caminho absoluto que mapeia direto para o volume do Docker
+CSV_FOLDER = "/app/data_extraction/gerados"
+
 def fill_out_csv(patient_name, patient_id, img_path, area_mean, compactness_mean, perimeter_mean, concavity_mean, radius_mean):
-    # Exemplo de como salvar no mesmo arquivo sem sobrescrever
+    os.makedirs(CSV_FOLDER, exist_ok=True)
+    
     novo_dado = pd.DataFrame({
         "patient_name": [patient_name],
         "patient_id": [patient_id],
@@ -14,5 +18,5 @@ def fill_out_csv(patient_name, patient_id, img_path, area_mean, compactness_mean
         "radius_mean": [round(radius_mean, 3)]
     })
 
-    # append=True no modo 'a' (archive) do CSV
-    novo_dado.to_csv('dataset_global1.csv', mode='a', header=not os.path.exists('dataset_global1.csv'), index=False)
+    csv_path = os.path.join(CSV_FOLDER, 'dataset_extraction.csv')
+    novo_dado.to_csv(csv_path, mode='a', header=not os.path.exists(csv_path), index=False)

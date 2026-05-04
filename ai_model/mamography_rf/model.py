@@ -9,28 +9,35 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from dto import PatientDiagnosticModel
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 modelo_rf = joblib.load("trained_model.pkl")
 scaler = joblib.load('scaler.pkl')
 modelo_lr = joblib.load('logistic_model.pkl')
 
 def handleLearning():
-    # 1. PREPARAÇÃO
+    
+    #Leitura e tratamento dos dados
     df = pd.read_csv('data.csv')
     
-    # DICA: Removi o nome x_train aqui para não confundir com a saída do train_test_split
-    X_completo = df[['area_mean', 'compactness_mean', 'perimeter_mean', 'concavity_mean', 'radius_mean']]
+    
+    cols_validar = ['area_mean', 'compactness_mean', 'perimeter_mean', 'concavity_mean', 'radius_mean']
+    for col in cols_validar:
+        mediana = df[col].median()
+        df.loc[df[col] <= 0, col] = mediana
+    
+    df.drop_duplicates(inplace=True)
+
+    X_completo = df[cols_validar]
     y_completo = df['diagnosis'].map({'M': 1, 'B': 0})
     
-    # 2. DIVISÃO
-    # O test_size=0.2 garante os 20% para validação exigidos no PDF
     X_train, X_test, y_train, y_test = train_test_split(X_completo, y_completo, test_size=0.2, random_state=42)   
      
-    # 3. ESCALONAMENTO
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train) 
     X_test_scaled = scaler.transform(X_test) 
     
-    # Isso deve imprimir valores muito próximos de zero (ex: 1.2e-16)
     print("Média das features (deve ser ~0):", X_train_scaled.mean(axis=0))
     
     # 4. TREINAMENTO
@@ -43,7 +50,6 @@ def handleLearning():
     lr_model.fit(X_train_scaled, y_train)
     
     # 5. VALIDAÇÃO
-    # CORREÇÃO AQUI: Você chamou de 'rfc', então deve usar 'rfc.predict'
     y_pred = rfc.predict(X_test_scaled)
     y_pred_lr = lr_model.predict(X_test_scaled)
     
@@ -57,17 +63,40 @@ def handleLearning():
     print("=== MATRIZ DE CONFUSÃO ===")
     print(confusion_matrix(y_test, y_pred))
     
+    # Para o Random Forest
+    plt.figure(figsize=(5,4))
+    sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', cmap='Blues')
+    plt.title('Matriz de Confusão - Random Forest')
+    plt.savefig('matriz_rf.png')
+
+    # Para a Regressão Logística
+    plt.figure(figsize=(5,4))
+    sns.heatmap(confusion_matrix(y_test, y_pred_lr), annot=True, fmt='d', cmap='Greens')
+    plt.title('Matriz de Confusão - Regressão Logística')
+    plt.savefig('matriz_lr.png') 
+    
     # 6. EXPORTAÇÃO
     joblib.dump(rfc, 'trained_model.pkl')
     joblib.dump(scaler, 'scaler.pkl')
     joblib.dump(lr_model, 'logistic_model.pkl')
     print("\nArquivos salvos com sucesso: 'trained_model.pkl' e 'scaler.pkl'")
     
+    # Extraindo a importância das características
+    importances = rfc.feature_importances_
+    feature_names = ['area_mean', 'compactness_mean', 'perimeter_mean', 'concavity_mean', 'radius_mean']
+    feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+    feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
+
+    # Gerando o gráfico
+    plt.figure(figsize=(8, 5))
+    sns.barplot(x='Importance', y='Feature', data=feature_importance_df, palette='viridis')
+    plt.title('Explicabilidade: Importância das Características (Random Forest)')
+    plt.savefig('feature_importance.png')
+    
+    
 def handlePrediction(patient_data: PatientDiagnosticModel):
-    # 1. Definimos os nomes das colunas para evitar o UserWarning
     features = ['area_mean', 'compactness_mean', 'perimeter_mean', 'concavity_mean', 'radius_mean']
     
-    # 2. Criamos um DataFrame (isso garante a ordem correta das colunas)
     data_df = pd.DataFrame([[
         patient_data.area_mean,
         patient_data.compactness_mean, 
@@ -86,13 +115,10 @@ def handlePrediction(patient_data: PatientDiagnosticModel):
     prob_lr = modelo_lr.predict_proba(scaledData)[0][1] * 100
     pred_lr = modelo_lr.predict(scaledData)[0]
     
-    # 5. Lógica de Consenso (Opcional, mas excelente para o PDF)
-    # Se um diz 1 e outro diz 0, o risco é inconclusivo
     consensus = "Divergente"
     if pred_rf == 1 and pred_lr == 1: consensus = "Maligno"
     if pred_rf == 0 and pred_lr == 0: consensus = "Benigno"
     
-    # Veja quais características a LR mais valoriza
     coeficientes = pd.DataFrame(modelo_lr.coef_, columns=['area_mean', 'compactness_mean', 'perimeter_mean', 'concavity_mean', 'radius_mean'])
     print("Pesos da Regressão Logística:\n", coeficientes)
         
