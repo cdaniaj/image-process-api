@@ -343,9 +343,6 @@ app.add_middleware(
 
 ## 📝 Notas Importantes
 
-- Os modelos treinados (*.pkl) devem estar presentes no diretório raiz
-- O arquivo `data.csv` será atualizado com novos pacientes confirmados
-- A API requer permissão CORS do frontend
 - Sempre valide as imagens antes do envio (formato, tamanho)
 
 ---
