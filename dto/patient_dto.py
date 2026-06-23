@@ -14,6 +14,7 @@ class PatientDiagnosticModel(BaseModel):
     prediction: int
     prediction_lr: int
     risk_score_lr: float
+    finalConsensus: int
     
 def convert_to_dto(
     patient_name, 
@@ -23,7 +24,8 @@ def convert_to_dto(
     compactness_mean, 
     perimeter_mean, 
     concavity_mean, 
-    radius_mean
+    radius_mean,
+    finalConsensus
 ):
     patient_data = PatientDiagnosticModel(
         id=patient_id,
@@ -38,7 +40,8 @@ def convert_to_dto(
         risk_score=0,
         prediction=0,
         prediction_lr=0,
-        risk_score_lr=0
+        risk_score_lr=0,
+        finalConsensus=finalConsensus
     )
 
     return patient_data

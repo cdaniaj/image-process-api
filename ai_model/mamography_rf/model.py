@@ -115,13 +115,13 @@ def handlePrediction(patient_data: PatientDiagnosticModel):
     prob_lr = modelo_lr.predict_proba(scaledData)[0][1] * 100
     pred_lr = modelo_lr.predict(scaledData)[0]
     
-    consensus = "Divergente"
-    if pred_rf == 1 and pred_lr == 1: consensus = "Maligno"
-    if pred_rf == 0 and pred_lr == 0: consensus = "Benigno"
+    consensus = 2
+    if pred_rf == 1 and pred_lr == 1: consensus = 1
+    if pred_rf == 0 and pred_lr == 0: consensus = 0
     
     coeficientes = pd.DataFrame(modelo_lr.coef_, columns=['area_mean', 'compactness_mean', 'perimeter_mean', 'concavity_mean', 'radius_mean'])
     print("Pesos da Regressão Logística:\n", coeficientes)
-        
+
     return {
         "random_forest": {"prediction": int(pred_rf), "risk": round(prob_rf, 2)},
         "logistic_regression": {"prediction": int(pred_lr), "risk": round(prob_lr, 2)},

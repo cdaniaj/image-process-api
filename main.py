@@ -35,10 +35,15 @@ async def postAISample(patient_data: PatientDiagnosticModel):
     print(patient_data)
     try:
         fill_out_csv(
-            patient_data.name, patient_data.id, 
-            patient_data.file_name, patient_data.area_mean,
-            patient_data.compactness_mean, patient_data.perimeter_mean, 
-            patient_data.concavity_mean, patient_data.radius_mean
+            patient_data.name, 
+            patient_data.id, 
+            patient_data.file_name, 
+            patient_data.area_mean,
+            patient_data.compactness_mean, 
+            patient_data.perimeter_mean, 
+            patient_data.concavity_mean, 
+            patient_data.radius_mean,
+            patient_data.finalConsensus
         )
         return {
             "status": "success"
@@ -140,7 +145,8 @@ async def analyze_cell(
                 contours_data["train_data"]["compactness_mean"],
                 contours_data["train_data"]["perimeter_mean"],
                 contours_data["train_data"]["concavity_mean"],
-                contours_data["train_data"]["radius_mean"]
+                contours_data["train_data"]["radius_mean"], 
+                0
             )
             predictionData = handlePrediction(patient_data)
             patient_data.risk_score = predictionData["random_forest"]["risk"]
@@ -148,6 +154,7 @@ async def analyze_cell(
             patient_data.prediction_lr = predictionData["logistic_regression"]["prediction"]
             patient_data.risk_score_lr = predictionData["logistic_regression"]["risk"]
             patient_data.risk_label = get_risk_label(patient_data.risk_score)
+            patient_data.finalConsensus = predictionData["final_consensus"]
             
             # Visualização de Debug
             get_file(
