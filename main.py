@@ -1,6 +1,10 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Form
+
+
+import time
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from contours import get_contours, get_contours_data
 from normalization import normalize_image
@@ -13,14 +17,16 @@ from ai_model.mamography_rf.model import handleLearning, handlePrediction
 from dto import convert_to_dto, get_risk_label, PatientDiagnosticModel
 from reports.diagram import getReports
 
+from llm_layer.client import generate_medical_report
+
 import cv2 as cv
 import numpy as np
 
-app = FastAPI()
+app = FastAPI(title="Image process API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], 
+    allow_origins=["http://localhost:3000", "http://localhost:4200"], 
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -156,6 +162,10 @@ async def analyze_cell(
             patient_data.risk_label = get_risk_label(patient_data.risk_score)
             patient_data.finalConsensus = predictionData["final_consensus"]
             
+            
+            report_text = generate_medical_report(patient_data.model_dump())
+            patient_data.llm_explanation = report_text
+            
             # Visualização de Debug
             get_file(
                 patient_data.file_name, 
@@ -180,3 +190,5 @@ async def analyze_cell(
         raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
     finally:
         await file.close()
+        
+Instrumentator().instrument(app).expose(app)
