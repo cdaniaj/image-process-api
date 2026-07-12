@@ -3,10 +3,8 @@ import os
 import google.generativeai as genai
 from fastapi import HTTPException
 
-# Configura a chave de API (recomendo puxar do ambiente/arquivo .env)
-GEMINI_API_KEY = "AQ.Ab8RN6J5AAyHbCqDhtaJ5Hx8c9I_jC-1mBYPhguB8ukIjVcsXw"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 if not GEMINI_API_KEY:
-    # Levanta um aviso ou erro caso esqueça de configurar a chave
     raise ValueError("A variável de ambiente GEMINI_API_KEY não foi configurada.")
 
 genai.configure(api_key=GEMINI_API_KEY)
