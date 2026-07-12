@@ -1,352 +1,225 @@
-# 📊 Image Process API
+# Image Process API
 
-API FastAPI para processamento e análise de imagens mamográficas com detecção de lesões utilizando visão computacional e machine learning.
+API FastAPI para análise de imagens mamográficas com processamento de imagem, modelos de machine learning, geração de laudos com LLM e observabilidade.
 
-## 📁 Estrutura do Projeto
+## O que mudou recentemente
 
-```
+A API foi expandida para incluir:
+
+- pipeline completo de análise de imagem com normalização, pré-processamento, binarização, morfologia e extração de contornos;
+- endpoint de análise com upload de imagem e metadados do paciente;
+- endpoint de confirmação para persistir amostras em CSV para treinamento futuro;
+- endpoint de treinamento de modelos;
+- integração com Gemini para geração de relatório médico textual;
+- métricas Prometheus e logs estruturados para observabilidade;
+- suporte a execução via Docker Compose com frontend, backend, Prometheus e Grafana;
+- logs resilientes com fallback para diretórios graváveis caso o caminho padrão do container não esteja disponível.
+
+## Estrutura atual do projeto
+
+```text
 image-process-api/
-├── main.py                      # Arquivo principal da aplicação FastAPI
-├── requirements.txt             # Dependências do projeto
-├── Dockerfile                   # Configuração para containerização
-├── data.csv                     # Dataset com dados dos pacientes
-├── logistic_model.pkl           # Modelo treinado - Regressão Logística
-├── trained_model.pkl            # Modelo treinado - Random Forest
-├── scaler.pkl                   # Scaler para normalização dos dados
-│
-├── ai_model/                    # 🤖 Módulo de Modelos de IA
+├── main.py
+├── requirements.txt
+├── Dockerfile
+├── prometheus.yml
+├── data.csv
+├── ai_model/
 │   └── mamography_rf/
-│       └── model.py             # Handlers para treinamento e predição de modelos
-│
-├── data_extraction/             # 📊 Extração de Características
-│   └── extraction.py            # Lógica para preencher CSV com dados extraídos
-│
-├── dto/                         # 🔄 Data Transfer Objects
-│   └── __init__.py              # Modelos Pydantic para transferência de dados
-│
-├── contours/                    # 🎯 Detecção e Análise de Contornos
-│   └── __init__.py              # Funções para extrair contornos e calcular features
-│
-├── morphology/                  # 🔧 Operações Morfológicas
-│   └── __init__.py              # Dilatação, erosão e limpeza de imagens
-│
-├── normalization/               # ⚙️ Normalização de Imagens
-│   └── __init__.py              # Padronização de pixel values
-│
-├── outputfile/                  # 📁 Saída de Arquivos
-│   └── __init__.py              # Geração de imagens processadas
-│
-└── reports/                     # 📈 Relatórios
-    └── diagram.py               # Geração de gráficos e diagramas
-
+│       ├── model.py
+│       └── genetic_optimizer.py
+├── contours/
+│   └── contours.py
+├── data_extraction/
+│   └── extraction.py
+├── dto/
+│   └── patient_dto.py
+├── llm_layer/
+│   ├── client.py
+│   └── prompt_templates.py
+├── morphology/
+│   └── morphology.py
+├── normalization/
+│   └── normalization.py
+├── observability/
+│   └── logger.py
+├── outputfile/
+│   └── outputfile.py
+├── reports/
+│   └── diagram.py
+├── tests/
+│   └── test_logger.py
+└── logs/
 ```
 
-## 🔍 Descrição de Cada Módulo
+## Como executar
 
-### `main.py` - Aplicação Principal
-Arquivo central que configura a API FastAPI com os seguintes endpoints:
+### Opção 1: Docker Compose (recomendado)
 
-- **POST /analyze** - Analisa uma imagem mamográfica
-  - Recebe: arquivo de imagem, nome do paciente, ID do paciente
-  - Processa a imagem através de pipeline de visão computacional
-  - Retorna: características extraídas, risco e predições
+Na raiz do repositório:
 
-- **POST /confirm** - Confirma e salva dados do paciente
-  - Preenche o arquivo data.csv com informações validadas
-
-- **POST /model** - Treina o modelo de IA
-  - Executa o treinamento dos modelos (Random Forest e Regressão Logística)
-
-- **POST /reports** - Gera relatórios visuais
-  - Cria gráficos e diagramas dos resultados
-
-### `ai_model/mamography_rf/model.py` - Machine Learning
-- **handleLearning()**: Treina os modelos de ML com dados do CSV
-- **handlePrediction()**: Realiza predições usando os modelos treinados
-- Utiliza Random Forest e Regressão Logística
-- Calcula scores de risco e probabilidades
-
-### `data_extraction/extraction.py` - Extração de Dados
-- **fill_out_csv()**: Salva características extraídas no CSV
-- Registra: nome, ID, características da lesão, nome do arquivo
-- Prepara dados para treinamento do modelo
-
-### `dto/__init__.py` - Modelos de Dados
-Define a classe `PatientDiagnosticModel` com Pydantic:
-- Dados do paciente (nome, ID)
-- Características extraídas (área, compacidade, perímetro, etc.)
-- Predições e scores de risco
-- **convert_to_dto()**: Converte dados para o objeto DTO
-- **get_risk_label()**: Classifica o nível de risco
-
-### `contours/__init__.py` - Detecção de Contornos
-- **get_contours()**: Extrai contornos da imagem binarizada
-- **get_contours_data()**: Calcula features para cada contorno
-- Features extraídas:
-  - Área (area)
-  - Compacidade (compactness)
-  - Perímetro (perimeter)
-  - Concavidade (concavity)
-  - Raio médio (radius_mean)
-
-### `morphology/__init__.py` - Operações Morfológicas
-- **apply_morphology()**: Aplica operações de limpeza
-- Realiza: erosão, dilatação e abertura morfológica
-- Remove ruído e conecta estruturas fragmentadas
-
-### `normalization/__init__.py` - Normalização
-- **normalize_image()**: Normaliza valores de pixel
-- Ajusta o contraste preservando estruturas importantes
-- Parâmetros: mínimo e máximo percentil
-
-### `outputfile/__init__.py` - Saída Processada
-- **get_file()**: Salva imagens processadas
-- Gera arquivos para visualização e debug
-- Inclui: imagem processada com contornos sobrepostos
-
-### `reports/diagram.py` - Relatórios
-- **getReports()**: Cria visualizações dos resultados
-- Gera gráficos de análise e estatísticas
-
-## 🚀 Como Executar
-
-### Pré-requisitos
-- Docker instalado ([Download Docker](https://www.docker.com/products/docker-desktop))
-- Docker Compose (opcional, vem com Docker Desktop)
-
-### Opção 1: Executar com Docker (Recomendado)
-
-#### 1️⃣ Build da Imagem
-Construa a imagem Docker:
 ```bash
-docker build -t image-process-api:latest .
+docker compose up -d --build
 ```
 
-#### 2️⃣ Executar o Container
-Execute o container com a imagem criada:
+Serviços disponíveis:
+
+- Backend: http://localhost:8000
+- Swagger: http://localhost:8000/docs
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000
+- Frontend: http://localhost:4200
+
+Volumes mapeados:
+
+- ./resultados_csv -> /app/data_extraction/gerados
+- ./resultados_imagens -> /app/outputfile/gerados
+- ./logs -> /app/logs
+
+### Opção 2: Execução local
+
 ```bash
-docker run -p 8000:8000 --name image-api image-process-api:latest
-```
-
-**Explicação dos parâmetros:**
-- `-p 8000:8000` - Mapeia a porta 8000 do container para a porta 8000 do seu computador
-- `--name image-api` - Dá um nome ao container (opcional)
-- `-d` - Executa em background (opcional, adicione para soltar o terminal)
-
-#### 3️⃣ Acessar a API
-Abra seu navegador ou cliente HTTP:
-- **URL Base**: `http://localhost:8000`
-- **Documentação Interativa**: `http://localhost:8000/docs` (Swagger UI)
-- **Documentação Alternativa**: `http://localhost:8000/redoc` (ReDoc)
-
-#### 4️⃣ Parar o Container
-```bash
-docker stop image-api
-```
-
-#### 5️⃣ Remover o Container
-```bash
-docker rm image-api
-```
-
----
-
-### Opção 2: Executar Localmente (sem Docker)
-
-#### 1️⃣ Instalar Dependências
-```bash
+cd image-process-api
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-#### 2️⃣ Executar a Aplicação
-```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
----
-
-## 📋 Pipeline de Processamento de Imagem
-
-O processo de análise segue estas etapas:
-
-```
-1. UPLOAD DA IMAGEM
-   ↓
-2. NORMALIZAÇÃO
-   └─ Ajusta níveis de pixel (percentis 85-100)
-   ↓
-3. PRÉ-PROCESSAMENTO
-   ├─ Blur Mediano (5x5)
-   ├─ CLAHE (Contrast Limited Adaptive Histogram Equalization)
-   ↓
-4. BINARIZAÇÃO
-   └─ Threshold de Otsu (OTSU automático)
-   ↓
-5. LIMPEZA MORFOLÓGICA
-   ├─ Erosão
-   ├─ Dilatação
-   ├─ Abertura morfológica
-   ↓
-6. EXTRAÇÃO DE CONTORNOS
-   ├─ Detecção de contornos
-   ├─ Cálculo de features (área, perímetro, etc.)
-   ↓
-7. PREDIÇÃO DE IA
-   ├─ Random Forest Classifier
-   ├─ Logistic Regression
-   ├─ Cálculo de risk scores
-   ↓
-8. RESPOSTA
-   └─ Retorna análise completa ao usuário
-```
-
----
-
-## 🔗 Endpoints Principais
+## Endpoints principais
 
 ### POST /analyze
-Analisa uma imagem mamográfica enviada.
+Analisa uma imagem mamográfica enviada pelo usuário.
 
-**Request:**
+Form-data esperado:
+
+- file: imagem em JPG ou PNG
+- patient_name: nome do paciente
+- patient_id: identificador do paciente
+
+Exemplo:
+
 ```bash
 curl -X POST http://localhost:8000/analyze \
   -F "file=@imagem.jpg" \
-  -F "patient_name=João Silva" \
+  -F "patient_name=Maria Silva" \
   -F "patient_id=12345"
 ```
 
-**Response:**
-```json
-{
-  "name": "João Silva",
-  "id": "12345",
-  "area": 1234.56,
-  "perimeter": 145.78,
-  "circularity": 0.89,
-  "solidity": 0.92,
-  "risk_score": 0.45,
-  "risk_label": "Baixo Risco",
-  "patient_data": {...}
-}
-```
+Resposta inclui métricas geométricas, score de risco, rótulo de risco e o objeto completo do paciente com dados de predição.
 
 ### POST /confirm
-Confirma dados do paciente e salva no CSV.
+Salva uma amostra confirmada no arquivo CSV de treinamento.
 
-**Request:**
+Exemplo:
+
 ```bash
 curl -X POST http://localhost:8000/confirm \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "João Silva",
+    "name": "Maria Silva",
     "id": "12345",
     "file_name": "imagem.jpg",
     "area_mean": 1234.56,
     "compactness_mean": 0.5,
     "perimeter_mean": 145.78,
     "concavity_mean": 0.3,
-    "radius_mean": 25.5
+    "radius_mean": 25.5,
+    "finalConsensus": 1,
+    "risk_score": 0.0,
+    "risk_label": "",
+    "prediction": 0,
+    "prediction_lr": 0,
+    "risk_score_lr": 0,
+    "llm_explanation": "",
+    "llm_insights": ""
   }'
 ```
 
 ### POST /model
-Treina os modelos de machine learning.
+Treina os modelos de machine learning com os dados já confirmados.
 
 ```bash
 curl -X POST http://localhost:8000/model
 ```
 
 ### POST /reports
-Gera relatórios visuais.
+Gera os artefatos visuais de relatório.
 
 ```bash
 curl -X POST http://localhost:8000/reports
 ```
 
----
+### GET /metrics
+Expõe métricas para o Prometheus.
 
-## 📚 Dependências Principais
+## Pipeline de processamento
 
-| Pacote | Versão | Função |
-|--------|--------|--------|
-| **fastapi** | 0.128.8 | Framework web |
-| **uvicorn** | 0.39.0 | Servidor ASGI |
-| **opencv-python** | 4.13.0 | Processamento de imagens |
-| **numpy** | 2.0.2 | Computação numérica |
-| **pandas** | 2.3.3 | Manipulação de dados |
-| **scikit-learn** | 1.5.0 | Machine Learning |
-| **matplotlib** | 3.9.4 | Visualização |
-| **pydantic** | 2.12.5 | Validação de dados |
+O fluxo atual segue esta ordem:
 
----
+1. leitura da imagem;
+2. normalização de intensidade;
+3. pré-processamento com blur mediano e CLAHE;
+4. binarização via threshold de Otsu;
+5. limpeza morfológica;
+6. extração de contornos e cálculo de features;
+7. predição com modelos de ML;
+8. geração de laudo médico via LLM;
+9. persistência de imagens e dados de saída.
 
-## 🐳 Explicação do Dockerfile
+## Dependências principais
 
-```dockerfile
-# 1. Usa imagem Python 3.10 slim (mínima)
-FROM python:3.10-slim
+- FastAPI
+- Uvicorn
+- OpenCV
+- NumPy
+- Pandas
+- scikit-learn
+- Matplotlib
+- Pydantic
+- python-multipart
+- Prometheus FastAPI Instrumentator
+- google-generativeai
 
-# 2. Instala dependências de sistema necessárias para OpenCV
-RUN apt-get update && apt-get install -y \
-    libgl1 \                    # Renderização gráfica
-    libglib2.0-0 \              # Biblioteca GLIB
-    && rm -rf /var/lib/apt/lists/*
+## Variáveis de ambiente
 
-# 3. Define diretório de trabalho no container
-WORKDIR /app
+Para a integração com o modelo de linguagem, configure a chave de acesso:
 
-# 4. Copia e instala dependências Python
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# 5. Copia todo o código da aplicação
-COPY . .
-
-# 6. Expõe a porta 8000
-EXPOSE 8000
-
-# 7. Inicia o servidor FastAPI
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```bash
+export GEMINI_API_KEY=sua_chave_aqui
 ```
 
----
+Opcionalmente, você pode definir um diretório específico para os logs:
 
-## ⚙️ Variáveis de Ambiente
-
-Se necessário configurar CORS ou outras settings, edite o arquivo `main.py`:
-
-```python
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Altere conforme necessário
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+```bash
+export IMAGE_PROCESS_LOG_DIR=/tmp/image-process-api/logs
 ```
 
----
+## Observabilidade
 
-## 🐛 Troubleshooting
+A API registra logs de requisições e expõe métricas para monitoramento via Prometheus. O stack do Docker Compose já inclui:
 
-### Erro: "docker: command not found"
-- Instale Docker Desktop em https://www.docker.com
+- Prometheus em http://localhost:9090
+- Grafana em http://localhost:3000
 
-### Erro: "Port 8000 already in use"
-- Use outra porta: `docker run -p 8001:8000 image-process-api:latest`
-- Ou pare containers em execução: `docker ps` e `docker stop <container_id>`
+Credenciais padrão do Grafana:
 
-### Erro: "ModuleNotFoundError"
-- Certifique-se de que todos os arquivos estão no diretório raiz
-- Verifique se `requirements.txt` está atualizado
+- usuário: admin
+- senha: admin123
 
----
+Para acompanhar os logs do backend em tempo real:
 
-## 📝 Notas Importantes
+```bash
+docker compose logs -f backend
+```
 
-- Sempre valide as imagens antes do envio (formato, tamanho)
+Ou, localmente:
 
----
+```bash
+tail -f logs/app_performance.log
+```
 
-## 📧 Suporte
+## Observações
 
-Para dúvidas ou problemas, abra uma issue no repositório.
+- As imagens processadas e os artefatos gerados são salvos em pastas sob os diretórios de saída do projeto.
+- Para ajustar CORS ou outras políticas da API, consulte o arquivo main.py.

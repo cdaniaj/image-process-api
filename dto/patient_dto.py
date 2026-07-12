@@ -12,9 +12,11 @@ class PatientDiagnosticModel(BaseModel):
     risk_score: float
     risk_label: str
     prediction: int
-    prediction_lr: int
+    prediction_lr: float
     risk_score_lr: float
     finalConsensus: int
+    llm_explanation: str
+    llm_insights: str
     
 def convert_to_dto(
     patient_name, 
@@ -41,7 +43,9 @@ def convert_to_dto(
         prediction=0,
         prediction_lr=0,
         risk_score_lr=0,
-        finalConsensus=finalConsensus
+        finalConsensus=finalConsensus,
+        llm_explanation="",
+        llm_insights=""
     )
 
     return patient_data
