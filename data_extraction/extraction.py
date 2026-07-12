@@ -1,8 +1,9 @@
 import pandas as pd
 import os
 
-# Caminho absoluto que mapeia direto para o volume do Docker
-CSV_FOLDER = "/app/data_extraction/gerados"
+# Caminho relativo que funciona localmente e em Docker
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CSV_FOLDER = os.path.join(BASE_DIR, "data_extraction", "gerados")
 
 def fill_out_csv(patient_name, patient_id, img_path, area_mean, compactness_mean, perimeter_mean, concavity_mean, radius_mean, finalConsensus):
     os.makedirs(CSV_FOLDER, exist_ok=True)
