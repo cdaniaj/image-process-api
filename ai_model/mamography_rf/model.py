@@ -5,11 +5,13 @@ import os
 import pandas as pd
 import numpy as np
 import joblib
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, f1_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from dto import PatientDiagnosticModel
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -58,7 +60,7 @@ def handleLearning():
     logger.info("🚀 [START] Iniciando o pipeline completo de treinamento (/model)...")
     inicio_pipeline = time.time()
     
-    # 1. Leitura e tratamento dos dados
+    # 1. Leitura e tratamento dos dados[cite: 5]
     df = pd.read_csv('data.csv')
     
     cols_validar = ['area_mean', 'compactness_mean', 'perimeter_mean', 'concavity_mean', 'radius_mean']
@@ -70,7 +72,7 @@ def handleLearning():
 
     X_completo = df[cols_validar]
     
-    # Suporte caso o diagnosis já venha numérico do endpoint /confirm ou texto 'M'/'B'
+    # Suporte caso o diagnosis já venha numérico do endpoint /confirm ou texto 'M'/'B'[cite: 5]
     if df['diagnosis'].dtype == object:
         y_completo = df['diagnosis'].map({'M': 1, 'B': 0})
     else:
@@ -85,24 +87,32 @@ def handleLearning():
     logger.info(f"📊 Dados preparados com sucesso. Amostras de Treino: {len(X_train_scaled)} | Amostras de Teste: {len(X_test_scaled)}")
 
     # =========================================================================
-    # INTRODUÇÃO DOS 3 EXPERIMENTOS OBRIGATÓRIOS DO ALGORITMO GENÉTICO
+    # NOVO: MODELO BASELINE ORIGINAL (REQUISITO EXIGIDO NO PDF)[cite: 2, 5]
     # =========================================================================
-    logger.info("⚡ Iniciando a fase obrigatória de otimização via Algoritmos Genéticos...")
+    logger.info("📐 Avaliando o Modelo Original (Random Forest Padrão do Scikit-Learn)...")
+    rfc_baseline = RandomForestClassifier(random_state=42)
+    rfc_baseline.fit(X_train_scaled, y_train)
+    y_pred_baseline = rfc_baseline.predict(X_test_scaled)
+    f1_baseline = f1_score(y_test, y_pred_baseline, average='binary')
+    logger.info(f"📉 F1-Score do Modelo Original (Baseline): {f1_baseline:.4f}")
+    # =========================================================================
+
+    # 3. EXPERIMENTOS DO ALGORITMO GENÉTICO[cite: 5]
+    logger.info("⚡ Iniciando a fase de otimização via Algoritmos Genéticos...")
     otimizador = GeneticOptimizer(X_train_scaled, y_train)
     
-    # Experimento 1: Configuração Rápida (População Pequena, Mutação Baixa)
+    # Experimento 1[cite: 5]
     logger.info("⚙️ Rodando Experimento 1/3...")
     params_exp1, f1_exp1 = otimizador.rodar_experimento(num_geracoes=3, tam_populacao=6, taxa_mutacao=0.1)
     
-    # Experimento 2: Configuração Exploratória (População Média, Mutação Alta)
+    # Experimento 2[cite: 5]
     logger.info("⚙️ Rodando Experimento 2/3...")
     params_exp2, f1_exp2 = otimizador.rodar_experimento(num_geracoes=3, tam_populacao=10, taxa_mutacao=0.3)
     
-    # Experimento 3: Configuração Focada (Mais Gerações, População Intermediária)
+    # Experimento 3[cite: 5]
     logger.info("⚙️ Rodando Experimento 3/3...")
     params_exp3, f1_exp3 = otimizador.rodar_experimento(num_geracoes=5, tam_populacao=8, taxa_mutacao=0.2)
     
-    # Decisão do Campeão de Hiperparâmetros
     resultados = {f1_exp1: params_exp1, f1_exp2: params_exp2, f1_exp3: params_exp3}
     melhor_f1_encontrado = max(resultados.keys())
     genes_campeoes = resultados[melhor_f1_encontrado]
@@ -111,13 +121,11 @@ def handleLearning():
     best_max_depth = int(genes_campeoes[1])
     best_min_samples_split = int(genes_campeoes[2])
     
-    logger.info(f"🏆 Otimização Concluída! Hiperparâmetros Vencedores -> n_estimators: {best_n_estimators}, max_depth: {best_max_depth}, min_samples_split: {best_min_samples_split} | F1-Score Estimado: {melhor_f1_encontrado:.4f}")
-    # =========================================================================
+    logger.info(f"🏆 Otimização Concluída! Hiperparâmetros Vencedores -> n_estimators: {best_n_estimators}, max_depth: {best_max_depth}, min_samples_split: {best_min_samples_split}")
 
-    # 4. TREINAMENTO DEFINITIVO COM OS PARÂMETROS OTIMIZADOS
+    # 4. TREINAMENTO DEFINITIVO COM OS PARÂMETROS OTIMIZADOS[cite: 5]
     logger.info("🏋️ Treinando os modelos finais com os hiperparâmetros otimizados...")
     
-    # Aplicando os parâmetros descobertos pelo AG no seu Random Forest
     rfc = RandomForestClassifier(
         n_estimators=best_n_estimators, 
         max_depth=best_max_depth, 
@@ -126,38 +134,39 @@ def handleLearning():
     )
     rfc.fit(X_train_scaled, y_train)
     
-    # Mantendo a Regressão Logística original para fins de comparação exigida pelo desafio
     lr_model = LogisticRegression()
     lr_model.fit(X_train_scaled, y_train)
     
-    # 5. VALIDAÇÃO
+    # 5. VALIDAÇÃO[cite: 5]
     y_pred = rfc.predict(X_test_scaled)
     y_pred_lr = lr_model.predict(X_test_scaled)
+    f1_otimizado = f1_score(y_test, y_pred, average='binary')
     
     print("\n=== RELATÓRIO DE CLASSIFICAÇÃO RANDOM FOREST (OTIMIZADO AM) ===")
     print(classification_report(y_test, y_pred))
 
-    print("=== RELATÓRIO REGRESSÃO LOGÍSTICA ===")
-    print(classification_report(y_test, y_pred_lr))
+    # =========================================================================
+    # NOVO: LOG COMPARATIVO EXIGIDO PELO RELATÓRIO DO TECH CHALLENGE[cite: 2, 5]
+    # =========================================================================
+    ganho_f1 = f1_otimizado - f1_baseline
+    logger.info(f"📊 [COMPARAÇÃO OBRIGATÓRIA] F1 Baseline: {f1_baseline:.4f} vs F1 Otimizado: {f1_otimizado:.4f} | Ganho Líquido: {ganho_f1:+.4f}")
     
-    # Para o Random Forest
+    # Matrizes de confusão e gráficos[cite: 5]
     plt.figure(figsize=(5,4))
     sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', cmap='Blues')
     plt.title('Matriz de Confusão - Random Forest Otimizado')
     plt.savefig('matriz_rf.png')
 
-    # Para a Regressão Logística
     plt.figure(figsize=(5,4))
     sns.heatmap(confusion_matrix(y_test, y_pred_lr), annot=True, fmt='d', cmap='Greens')
     plt.title('Matriz de Confusão - Regressão Logística')
     plt.savefig('matriz_lr.png') 
     
-    # 6. EXPORTAÇÃO
+    # 6. EXPORTAÇÃO[cite: 5]
     joblib.dump(rfc, 'trained_model.pkl')
     joblib.dump(scaler, 'scaler.pkl')
     joblib.dump(lr_model, 'logistic_model.pkl')
     
-    # Gerando o gráfico de explicabilidade
     importances = rfc.feature_importances_
     feature_names = ['area_mean', 'compactness_mean', 'perimeter_mean', 'concavity_mean', 'radius_mean']
     feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
@@ -190,10 +199,8 @@ def handlePrediction(patient_data: PatientDiagnosticModel):
         patient_data.radius_mean
     ]], columns=features)
     
-    # 3. Escalonamento usando o DataFrame
     scaledData = scaler.transform(data_df)
         
-    # 4. Predições
     prob_rf = modelo_rf.predict_proba(scaledData)[0][1] * 100
     pred_rf = modelo_rf.predict(scaledData)[0]
     

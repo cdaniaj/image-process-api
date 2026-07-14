@@ -1,6 +1,7 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Request
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Form
+from fastapi.responses import JSONResponse
 
 
 import time
@@ -31,6 +32,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+async def health_check():
+    return {"status": "ok"}
+
 @app.post("/reports")
 async def get_reports():
     getReports()
@@ -59,7 +64,7 @@ async def postAISample(patient_data: PatientDiagnosticModel):
         
         
 @app.post("/model", summary="Treina modelos de machine learning com os dados disponíveis.")
-async def postModel():
+async def postModel(background_tasks: BackgroundTasks):
     """
         Este endpoint é responsável por treinar os modelos de machine learning utilizando os dados disponíveis. 
         Ele pode ser acionado após a coleta de um número suficiente de amostras confirmadas para atualizar os modelos com 
@@ -78,14 +83,16 @@ async def postModel():
         5. Exportação dos modelos treinados para arquivos que podem ser utilizados posteriormente para fazer predições em novas amostras.
     """
     try:
-        handleLearning()
-        return {
-            "status": "success"
-        } 
+        background_tasks.add_task(handleLearning)
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "training_started",
+                "detail": "Otimização via AG iniciada em background. Monitore os logs do contêiner para acompanhar as gerações."
+            },
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
-        
-      
 
 @app.post("/analyze", summary="Analisa uma amostra de célula e retorna os dados extraídos e a previsão de risco.")
 async def analyze_cell(
@@ -163,8 +170,10 @@ async def analyze_cell(
             patient_data.finalConsensus = predictionData["final_consensus"]
             
             
-            report_text = generate_medical_report(patient_data.model_dump())
-            patient_data.llm_explanation = report_text
+            llm_result = generate_medical_report(patient_data.model_dump())
+            patient_data.llm_explanation = llm_result["report"]
+            # Você pode salvar llm_result["evaluation"] no seu banco/log se desejar demonstrar a qualidade
+            print(f"Qualidade do Laudo: {llm_result['evaluation']}")
             
             # Visualização de Debug
             get_file(

@@ -2,18 +2,19 @@
 
 API FastAPI para análise de imagens mamográficas com processamento de imagem, modelos de machine learning, geração de laudos com LLM e observabilidade.
 
-## O que mudou recentemente
+## Ajustes recentes implementados
 
-A API foi expandida para incluir:
+A API foi ampliada para cobrir o fluxo completo de análise e validação:
 
 - pipeline completo de análise de imagem com normalização, pré-processamento, binarização, morfologia e extração de contornos;
-- endpoint de análise com upload de imagem e metadados do paciente;
+- endpoint de análise com upload de imagem e captura de nome/ID do paciente;
 - endpoint de confirmação para persistir amostras em CSV para treinamento futuro;
-- endpoint de treinamento de modelos;
+- endpoint de treinamento de modelos em background, retornando status 202 Accepted;
 - integração com Gemini para geração de relatório médico textual;
 - métricas Prometheus e logs estruturados para observabilidade;
 - suporte a execução via Docker Compose com frontend, backend, Prometheus e Grafana;
-- logs resilientes com fallback para diretórios graváveis caso o caminho padrão do container não esteja disponível.
+- logs resilientes com fallback para diretórios graváveis caso o caminho padrão do container não esteja disponível;
+- suíte de testes automatizados para os fluxos principais da API.
 
 ## Estrutura atual do projeto
 
@@ -48,9 +49,18 @@ image-process-api/
 ├── reports/
 │   └── diagram.py
 ├── tests/
-│   └── test_logger.py
 └── logs/
 ```
+
+## Requisitos mínimos para validar o projeto
+
+Antes de executar, verifique os itens abaixo:
+
+- Python 3.9+ instalado (3.10+ recomendado para reduzir warnings de dependências);
+- Docker e Docker Compose instalados, se for usar a stack completa;
+- acesso a uma chave válida do Gemini via variável de ambiente;
+- permissão de escrita em diretórios de logs e saídas do projeto;
+- dependências Python instaladas corretamente.
 
 ## Como executar
 
@@ -80,11 +90,27 @@ Volumes mapeados:
 
 ```bash
 cd image-process-api
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+## Configuração de ambiente
+
+Para a integração com o Gemini, defina a chave de acesso antes de iniciar a aplicação:
+
+```bash
+export GEMINI_API_KEY=sua_chave_aqui
+```
+
+Opcionalmente, defina um diretório de logs diferente:
+
+```bash
+export IMAGE_PROCESS_LOG_DIR=/tmp/image-process-api/logs
+```
+
+> Observação: arquivos .env não são carregados automaticamente por processos Python ou Uvicorn. Para execução local, prefira exportar as variáveis no shell ou injetá-las no ambiente do Docker.
 
 ## Endpoints principais
 
@@ -137,11 +163,16 @@ curl -X POST http://localhost:8000/confirm \
 ```
 
 ### POST /model
-Treina os modelos de machine learning com os dados já confirmados.
+Inicia o treinamento dos modelos de machine learning em background.
 
 ```bash
 curl -X POST http://localhost:8000/model
 ```
+
+Resposta esperada:
+
+- status: 202 Accepted
+- body com status "training_started"
 
 ### POST /reports
 Gera os artefatos visuais de relatório.
@@ -181,21 +212,30 @@ O fluxo atual segue esta ordem:
 - Prometheus FastAPI Instrumentator
 - google-generativeai
 
-## Variáveis de ambiente
+## Validação rápida
 
-Para a integração com o modelo de linguagem, configure a chave de acesso:
-
-```bash
-export GEMINI_API_KEY=sua_chave_aqui
-```
-
-Opcionalmente, você pode definir um diretório específico para os logs:
+### Testes automatizados
 
 ```bash
-export IMAGE_PROCESS_LOG_DIR=/tmp/image-process-api/logs
+cd image-process-api
+python3 -m pytest -q tests
 ```
 
-## Observabilidade
+### Logs
+
+Para acompanhar os logs do backend em tempo real:
+
+```bash
+docker compose logs -f backend
+```
+
+Ou localmente:
+
+```bash
+tail -f logs/app_performance.log
+```
+
+### Observabilidade
 
 A API registra logs de requisições e expõe métricas para monitoramento via Prometheus. O stack do Docker Compose já inclui:
 
@@ -207,19 +247,8 @@ Credenciais padrão do Grafana:
 - usuário: admin
 - senha: admin123
 
-Para acompanhar os logs do backend em tempo real:
-
-```bash
-docker compose logs -f backend
-```
-
-Ou, localmente:
-
-```bash
-tail -f logs/app_performance.log
-```
-
-## Observações
+## Observações finais
 
 - As imagens processadas e os artefatos gerados são salvos em pastas sob os diretórios de saída do projeto.
 - Para ajustar CORS ou outras políticas da API, consulte o arquivo main.py.
+- Se algum requisito não estiver atendido, a validação mais rápida é rodar os testes e verificar os logs do container.
