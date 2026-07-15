@@ -60,7 +60,7 @@ def handleLearning():
     logger.info("🚀 [START] Iniciando o pipeline completo de treinamento (/model)...")
     inicio_pipeline = time.time()
     
-    # 1. Leitura e tratamento dos dados[cite: 5]
+    #Leitura e tratamento dos dados
     df = pd.read_csv('data.csv')
     
     cols_validar = ['area_mean', 'compactness_mean', 'perimeter_mean', 'concavity_mean', 'radius_mean']
@@ -72,7 +72,7 @@ def handleLearning():
 
     X_completo = df[cols_validar]
     
-    # Suporte caso o diagnosis já venha numérico do endpoint /confirm ou texto 'M'/'B'[cite: 5]
+    # Suporte caso o diagnosis já venha numérico do endpoint /confirm ou texto 'M'/'B'
     if df['diagnosis'].dtype == object:
         y_completo = df['diagnosis'].map({'M': 1, 'B': 0})
     else:
@@ -86,30 +86,23 @@ def handleLearning():
     
     logger.info(f"📊 Dados preparados com sucesso. Amostras de Treino: {len(X_train_scaled)} | Amostras de Teste: {len(X_test_scaled)}")
 
-    # =========================================================================
-    # NOVO: MODELO BASELINE ORIGINAL (REQUISITO EXIGIDO NO PDF)[cite: 2, 5]
-    # =========================================================================
     logger.info("📐 Avaliando o Modelo Original (Random Forest Padrão do Scikit-Learn)...")
     rfc_baseline = RandomForestClassifier(random_state=42)
     rfc_baseline.fit(X_train_scaled, y_train)
     y_pred_baseline = rfc_baseline.predict(X_test_scaled)
     f1_baseline = f1_score(y_test, y_pred_baseline, average='binary')
     logger.info(f"📉 F1-Score do Modelo Original (Baseline): {f1_baseline:.4f}")
-    # =========================================================================
 
-    # 3. EXPERIMENTOS DO ALGORITMO GENÉTICO[cite: 5]
+    # 3. EXPERIMENTOS DO ALGORITMO GENÉTICO
     logger.info("⚡ Iniciando a fase de otimização via Algoritmos Genéticos...")
     otimizador = GeneticOptimizer(X_train_scaled, y_train)
     
-    # Experimento 1[cite: 5]
     logger.info("⚙️ Rodando Experimento 1/3...")
     params_exp1, f1_exp1 = otimizador.rodar_experimento(num_geracoes=3, tam_populacao=6, taxa_mutacao=0.1)
     
-    # Experimento 2[cite: 5]
     logger.info("⚙️ Rodando Experimento 2/3...")
     params_exp2, f1_exp2 = otimizador.rodar_experimento(num_geracoes=3, tam_populacao=10, taxa_mutacao=0.3)
     
-    # Experimento 3[cite: 5]
     logger.info("⚙️ Rodando Experimento 3/3...")
     params_exp3, f1_exp3 = otimizador.rodar_experimento(num_geracoes=5, tam_populacao=8, taxa_mutacao=0.2)
     
@@ -123,7 +116,7 @@ def handleLearning():
     
     logger.info(f"🏆 Otimização Concluída! Hiperparâmetros Vencedores -> n_estimators: {best_n_estimators}, max_depth: {best_max_depth}, min_samples_split: {best_min_samples_split}")
 
-    # 4. TREINAMENTO DEFINITIVO COM OS PARÂMETROS OTIMIZADOS[cite: 5]
+    #TREINAMENTO DEFINITIVO COM OS PARÂMETROS OTIMIZADOS
     logger.info("🏋️ Treinando os modelos finais com os hiperparâmetros otimizados...")
     
     rfc = RandomForestClassifier(
@@ -137,7 +130,7 @@ def handleLearning():
     lr_model = LogisticRegression()
     lr_model.fit(X_train_scaled, y_train)
     
-    # 5. VALIDAÇÃO[cite: 5]
+    #VALIDAÇÃO
     y_pred = rfc.predict(X_test_scaled)
     y_pred_lr = lr_model.predict(X_test_scaled)
     f1_otimizado = f1_score(y_test, y_pred, average='binary')
@@ -145,13 +138,10 @@ def handleLearning():
     print("\n=== RELATÓRIO DE CLASSIFICAÇÃO RANDOM FOREST (OTIMIZADO AM) ===")
     print(classification_report(y_test, y_pred))
 
-    # =========================================================================
-    # NOVO: LOG COMPARATIVO EXIGIDO PELO RELATÓRIO DO TECH CHALLENGE[cite: 2, 5]
-    # =========================================================================
     ganho_f1 = f1_otimizado - f1_baseline
     logger.info(f"📊 [COMPARAÇÃO OBRIGATÓRIA] F1 Baseline: {f1_baseline:.4f} vs F1 Otimizado: {f1_otimizado:.4f} | Ganho Líquido: {ganho_f1:+.4f}")
     
-    # Matrizes de confusão e gráficos[cite: 5]
+    # Matrizes de confusão e gráficos
     plt.figure(figsize=(5,4))
     sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', cmap='Blues')
     plt.title('Matriz de Confusão - Random Forest Otimizado')
@@ -162,7 +152,7 @@ def handleLearning():
     plt.title('Matriz de Confusão - Regressão Logística')
     plt.savefig('matriz_lr.png') 
     
-    # 6. EXPORTAÇÃO[cite: 5]
+    #EXPORTAÇÃO
     joblib.dump(rfc, 'trained_model.pkl')
     joblib.dump(scaler, 'scaler.pkl')
     joblib.dump(lr_model, 'logistic_model.pkl')

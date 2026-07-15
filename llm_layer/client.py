@@ -10,6 +10,7 @@ if not GEMINI_API_KEY:
 
 genai.configure(api_key=GEMINI_API_KEY)
 
+#LLM AS A JUDGE
 def evaluate_report(report_text: str) -> dict:
     """
     Avalia a qualidade do laudo gerado pela LLM usando critérios heurísticos.
@@ -29,6 +30,7 @@ def evaluate_report(report_text: str) -> dict:
         "detalhes": checks
     }
     
+ #GENERATE MEDICAL REPORT USING PROMPT  
 def generate_medical_report(patient_data: dict, clinical_notes: str = "") -> dict:
     """
     Gera o laudo e avalia sua qualidade.
