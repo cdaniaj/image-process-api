@@ -3,7 +3,7 @@ import time
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
-from observability.logger import logger  # Já integrando o logger aqui!
+from observability.logger import logger 
 
 class GeneticOptimizer:
     def __init__(self, X=None, y=None, data_path="data.csv"):
@@ -43,7 +43,6 @@ class GeneticOptimizer:
         )
         
         # Executa cross-validation usando F1-Score como fitness 
-        # Nota: Ajuste X e y conforme seu data.csv
         try:
             scores = cross_val_score(model, self.X, self.y, cv=3, scoring='f1')
             return scores.mean()
@@ -57,7 +56,7 @@ class GeneticOptimizer:
         inicio = time.time()
         logger.info(f"🧬 Iniciando Experimento AG: Pop={tam_populacao}, Gerações={num_geracoes}, Mutação={taxa_mutacao} [cite: 31, 33]")
         
-        # 1. Inicializa população aleatória [cite: 27]
+        # 1. Inicializa população aleatória
         # Cada indivíduo: [n_estimators (10-200), max_depth (2-20), min_samples_split (2-10)]
         populacao = [
             [random.randint(10, 200), random.randint(2, 20), random.randint(2, 10)]
@@ -70,7 +69,6 @@ class GeneticOptimizer:
             # Avaliação (Fitness) 
             fitnesses = [self.calcular_fitness(ind) for ind in populacao]
             
-            # --- OPERADORES GENÉTICOS PURIOS ---
             # Seleção (Ex: Torneio) 
             selecionados = [random.choice(populacao) for _ in range(tam_populacao)] 
             
