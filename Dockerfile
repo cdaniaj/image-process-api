@@ -7,8 +7,8 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements-fine-tuning.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-fine-tuning.txt
 
 # Copia o conteúdo de image-process-api para dentro de /app
 COPY . .

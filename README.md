@@ -11,6 +11,8 @@ A API foi ampliada para cobrir o fluxo completo de análise e validação:
 - endpoint de confirmação para persistir amostras em CSV para treinamento futuro;
 - endpoint de treinamento de modelos em background, retornando status 202 Accepted;
 - integração com Gemini para geração de relatório médico textual;
+- workflow LangGraph para validação, recuperação de contexto, geração e guardrails do assistente;
+- provider configurável entre Gemini e adaptador PEFT fine-tuned;
 - métricas Prometheus e logs estruturados para observabilidade;
 - suporte a execução via Docker Compose com frontend, backend, Prometheus e Grafana;
 - logs resilientes com fallback para diretórios graváveis caso o caminho padrão do container não esteja disponível;
@@ -179,6 +181,59 @@ Gera os artefatos visuais de relatório.
 
 ```bash
 curl -X POST http://localhost:8000/reports
+```
+
+### POST /assistant/chat
+Consulta o assistente com histórico estruturado e protocolos locais.
+
+```bash
+curl -X POST http://localhost:8000/assistant/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "patient_id": "12345",
+    "query": "Resuma o histórico e os protocolos relevantes.",
+    "session_id": "sessao-123"
+  }'
+```
+
+A resposta inclui `response`, `sources`, `session_id` e o disclaimer obrigatório de validação humana.
+
+Coloque protocolos aprovados em `protocols/` nos formatos `.md` ou `.txt`. O diretório pode ser alterado com
+`MEDICAL_PROTOCOLS_DIR`. Quando não houver protocolos, o assistente informa explicitamente essa limitação.
+
+Para configurar artefatos e dados fora dos caminhos padrão, use `IMAGE_PROCESS_MODEL_DIR`,
+`IMAGE_PROCESS_LEGACY_DATASET`, `IMAGE_PROCESS_CONFIRMED_DATASET`, `IMAGE_PROCESS_DATA_DIR`,
+`FINE_TUNING_DATASET` e `FINE_TUNING_OUTPUT_DIR`.
+
+### Provider do assistente e fine-tuning
+
+O provider padrão do chat é o Gemini:
+
+```bash
+export ASSISTANT_MODEL_PROVIDER=gemini
+```
+
+Para executar um adaptador PEFT treinado localmente, instale as dependências opcionais:
+
+```bash
+cd image-process-api
+pip install -r requirements-fine-tuning.txt
+```
+
+Depois, configure:
+
+```bash
+export ASSISTANT_MODEL_PROVIDER=fine_tuned
+export FINE_TUNING_OUTPUT_DIR=fine_tunning/model_output
+```
+
+O adaptador deve conter `adapter/adapter_config.json` e `adapter_model.safetensors`
+ou `adapter_model.bin`. O backend não baixa nem executa o modelo local por padrão.
+
+Para rodar testes sem chamadas externas:
+
+```bash
+ASSISTANT_OFFLINE=true python -m pytest -q tests
 ```
 
 ### GET /metrics

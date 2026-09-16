@@ -1,0 +1,31 @@
+record_id,patient_id,exam_date,area_mean,perimeter_mean,circularity,solidity,compactness_mean,concavity_mean,radius_mean,risk_score,risk_label,prediction_rf,prediction_lr,risk_score_lr,final_consensus,source,synthetic,review_status,notes
+rec_001,PATIENT_001,2025-01-15,820.4,112.6,0.81,0.94,14.46,0.06,10.8,14.2,no_risk,0,0,12.8,0,synthetic_demo,true,not_reviewed,Historical synthetic baseline
+rec_002,PATIENT_001,2025-07-20,905.7,121.8,0.78,0.92,15.38,0.08,11.7,22.6,no_risk,0,0,24.1,0,synthetic_demo,true,not_reviewed,Historical synthetic follow-up
+rec_003,PATIENT_001,2026-02-18,1012.3,133.4,0.74,0.90,16.58,0.10,12.9,38.5,moderate_risk,1,0,35.7,2,synthetic_demo,true,not_reviewed,Synthetic model disagreement
+rec_004,PATIENT_002,2025-02-03,760.2,106.4,0.84,0.96,13.90,0.04,9.6,9.8,no_risk,0,0,11.4,0,synthetic_demo,true,not_reviewed,Historical synthetic baseline
+rec_005,PATIENT_002,2025-09-12,782.1,109.7,0.83,0.95,14.37,0.05,9.9,12.7,no_risk,0,0,13.5,0,synthetic_demo,true,not_reviewed,Historical synthetic follow-up
+rec_006,PATIENT_002,2026-04-10,804.8,111.5,0.82,0.94,14.44,0.06,10.1,16.9,no_risk,0,0,15.8,0,synthetic_demo,true,not_reviewed,Historical synthetic follow-up
+rec_007,PATIENT_003,2025-03-08,1190.5,151.2,0.82,0.88,18.20,0.12,15.1,43.6,moderate_risk,1,1,46.2,1,synthetic_demo,true,not_reviewed,Synthetic moderate risk example
+rec_008,PATIENT_003,2025-10-21,1254.7,157.4,0.80,0.87,18.75,0.13,15.8,51.2,moderate_risk,1,1,54.0,1,synthetic_demo,true,not_reviewed,Synthetic moderate risk follow-up
+rec_009,PATIENT_003,2026-05-16,1302.8,162.9,0.78,0.85,19.37,0.15,16.3,58.7,moderate_risk,1,0,55.1,2,synthetic_demo,true,not_reviewed,Synthetic model disagreement
+rec_010,PATIENT_004,2025-02-27,1450.6,174.8,0.76,0.84,20.07,0.16,17.2,64.8,high_risk,1,1,68.3,1,synthetic_demo,true,not_reviewed,Synthetic high risk example
+rec_011,PATIENT_004,2025-11-05,1518.2,181.1,0.73,0.82,20.60,0.18,18.0,72.1,high_risk,1,1,75.6,1,synthetic_demo,true,not_reviewed,Synthetic high risk follow-up
+rec_012,PATIENT_004,2026-06-22,1589.4,188.5,0.70,0.80,21.36,0.20,18.7,78.4,high_risk,1,1,81.2,1,synthetic_demo,true,not_reviewed,Synthetic high risk follow-up
+rec_013,PATIENT_005,2025-04-14,980.1,129.6,0.79,0.91,16.14,0.09,12.5,29.4,no_risk,0,1,33.8,2,synthetic_demo,true,not_reviewed,Synthetic model disagreement
+rec_014,PATIENT_005,2025-12-02,1008.9,132.7,0.77,0.90,16.45,0.10,12.8,34.1,moderate_risk,1,0,31.6,2,synthetic_demo,true,not_reviewed,Synthetic model disagreement
+rec_015,PATIENT_005,2026-07-11,1034.6,136.2,0.75,0.89,16.92,0.11,13.1,41.7,moderate_risk,1,1,39.9,1,synthetic_demo,true,not_reviewed,Synthetic moderate risk example
+rec_016,PATIENT_006,2025-01-29,680.3,98.2,0.87,0.97,13.18,0.03,8.7,7.4,no_risk,0,0,8.1,0,synthetic_demo,true,not_reviewed,Synthetic low risk example
+rec_017,PATIENT_006,2025-08-18,702.6,100.7,0.86,0.96,13.44,0.04,8.9,10.2,no_risk,0,0,9.7,0,synthetic_demo,true,not_reviewed,Synthetic low risk follow-up
+rec_018,PATIENT_006,2026-03-25,721.9,103.1,0.85,0.95,13.72,0.05,9.2,13.6,no_risk,0,0,14.8,0,synthetic_demo,true,not_reviewed,Synthetic low risk follow-up
+rec_019,PATIENT_007,2025-05-06,1112.4,143.8,0.83,0.89,17.61,0.11,14.2,47.8,moderate_risk,1,1,45.9,1,synthetic_demo,true,not_reviewed,Synthetic moderate risk example
+rec_020,PATIENT_007,2025-12-19,1168.9,149.1,0.81,0.88,18.00,0.12,14.8,53.4,moderate_risk,1,1,51.7,1,synthetic_demo,true,not_reviewed,Synthetic moderate risk follow-up
+rec_021,PATIENT_007,2026-08-02,1219.7,154.6,0.79,0.86,18.49,0.14,15.3,61.2,high_risk,1,0,57.8,2,synthetic_demo,true,not_reviewed,Synthetic model disagreement
+rec_022,PATIENT_008,2025-06-11,1378.3,168.9,0.72,0.83,19.70,0.17,16.6,67.5,high_risk,1,1,70.4,1,synthetic_demo,true,not_reviewed,Synthetic high risk example
+rec_023,PATIENT_008,2026-01-23,1421.5,173.8,0.70,0.81,20.21,0.19,17.0,73.8,high_risk,1,1,76.2,1,synthetic_demo,true,not_reviewed,Synthetic high risk follow-up
+rec_024,PATIENT_008,2026-08-15,1490.2,181.7,0.67,0.79,21.12,0.21,17.8,82.6,high_risk,1,1,84.0,1,synthetic_demo,true,not_reviewed,Synthetic high risk follow-up
+rec_025,PATIENT_009,2025-03-19,890.7,118.4,0.80,0.93,14.74,0.07,11.4,19.5,no_risk,0,0,21.2,0,synthetic_demo,true,not_reviewed,Synthetic low risk example
+rec_026,PATIENT_009,2025-10-08,932.5,123.6,0.78,0.92,15.38,0.08,11.8,27.9,no_risk,0,1,32.4,2,synthetic_demo,true,not_reviewed,Synthetic model disagreement
+rec_027,PATIENT_009,2026-04-29,974.8,128.9,0.76,0.90,16.05,0.10,12.3,36.8,moderate_risk,1,1,38.2,1,synthetic_demo,true,not_reviewed,Synthetic moderate risk example
+rec_028,PATIENT_010,2025-07-03,1260.2,158.7,0.77,0.86,19.00,0.14,15.9,55.6,moderate_risk,1,1,53.8,1,synthetic_demo,true,not_reviewed,Synthetic moderate risk example
+rec_029,PATIENT_010,2026-01-14,1318.6,164.2,0.74,0.84,19.42,0.16,16.4,63.7,high_risk,0,1,66.2,2,synthetic_demo,true,not_reviewed,Synthetic model disagreement
+rec_030,PATIENT_010,2026-08-24,1396.1,173.5,0.71,0.82,20.55,0.18,17.1,70.9,high_risk,1,1,72.8,1,synthetic_demo,true,not_reviewed,Synthetic high risk follow-up

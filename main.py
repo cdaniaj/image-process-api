@@ -1,10 +1,19 @@
+from pathlib import Path
+from dotenv import load_dotenv
+
+
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path, override=True)
+
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Form
+from pydantic import BaseModel
 from fastapi.responses import JSONResponse
 
 
-import time
+import threading
+from pathlib import Path
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from contours import get_contours, get_contours_data
@@ -19,11 +28,23 @@ from dto import convert_to_dto, get_risk_label, PatientDiagnosticModel
 from reports.diagram import getReports
 
 from llm_layer.client import generate_medical_report
+from langchain_agent.agent import AssistantResponse, run_assistant
+from observability.logger import logger
 
 import cv2 as cv
 import numpy as np
 
 app = FastAPI(title="Image process API")
+training_lock = threading.Lock()
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png"}
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+ASSISTANT_DISCLAIMER = "Sugestão de IA para auxílio médico. Validação humana obrigatória."
+
+
+class AssistantChatRequest(BaseModel):
+    patient_id: str
+    query: str
+    session_id: str
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,9 +62,20 @@ async def get_reports():
     getReports()
     return {"status": "success"}
 
+
+@app.post("/assistant/chat", response_model=AssistantResponse)
+async def assistant_chat(payload: AssistantChatRequest):
+    """Responde perguntas contextualizadas com histórico e protocolos locais."""
+    try:
+        return run_assistant(payload.patient_id, payload.query, payload.session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Erro no assistente: {str(exc)}") from exc
+
 @app.post("/confirm", summary="Confirma os dados extraídos de uma amostra e os salva em um arquivo CSV para treinamento futuro.")
 async def postAISample(patient_data: PatientDiagnosticModel):
-    print(patient_data)
+    logger.info("Amostra confirmada para patient_id=%s", patient_data.id)
     try:
         fill_out_csv(
             patient_data.name, 
@@ -54,11 +86,18 @@ async def postAISample(patient_data: PatientDiagnosticModel):
             patient_data.perimeter_mean, 
             patient_data.concavity_mean, 
             patient_data.radius_mean,
-            patient_data.finalConsensus
+            patient_data.finalConsensus,
+            patient_data.risk_score,
+            patient_data.risk_label,
+            patient_data.prediction,
+            patient_data.prediction_lr,
+            patient_data.risk_score_lr,
         )
         return {
             "status": "success"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
         
@@ -83,7 +122,20 @@ async def postModel(background_tasks: BackgroundTasks):
         5. Exportação dos modelos treinados para arquivos que podem ser utilizados posteriormente para fazer predições em novas amostras.
     """
     try:
-        background_tasks.add_task(handleLearning)
+        if not training_lock.acquire(blocking=False):
+            raise HTTPException(status_code=409, detail="Já existe um treinamento em execução.")
+
+        def run_training():
+            try:
+                handleLearning()
+            finally:
+                training_lock.release()
+
+        try:
+            background_tasks.add_task(run_training)
+        except Exception:
+            training_lock.release()
+            raise
         return JSONResponse(
             status_code=202,
             content={
@@ -91,6 +143,8 @@ async def postModel(background_tasks: BackgroundTasks):
                 "detail": "Otimização via AG iniciada em background. Monitore os logs do contêiner para acompanhar as gerações."
             },
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
 
@@ -119,12 +173,21 @@ async def analyze_cell(
         em seguida, retorna os dados extraídos, a previsão de risco e outras informações relevantes para o cliente. 
     """
     try:
+        if file.content_type not in ALLOWED_IMAGE_TYPES:
+            raise HTTPException(
+                status_code=415,
+                detail="Tipo de imagem não suportado. Use image/jpeg ou image/png.",
+            )
+
         contents = await file.read()
+        if len(contents) > MAX_IMAGE_BYTES:
+            raise HTTPException(status_code=413, detail="A imagem excede o limite de 10 MB.")
+
         nparr = np.frombuffer(contents, dtype=np.uint8)
         img = cv.imdecode(nparr, cv.IMREAD_GRAYSCALE)
         
         if img is None:
-            raise HTTPException(status_code=400, detail="Imagem inválida.")
+            raise HTTPException(status_code=400, detail="Imagem inválida ou não decodificável.")
 
         # 1. RECORTE (ROI)
         amostra = img
@@ -148,39 +211,42 @@ async def analyze_cell(
         # 6. EXTRAÇÃO DO CONTORNO
         contours = get_contours(thresh)
 
-        if contours:
-            contours_data = get_contours_data(contours, amostra.shape)
-            patient_data = convert_to_dto(
-                patient_name, 
-                patient_id, 
-                file.filename, 
-                contours_data["train_data"]["area_mean"],
-                contours_data["train_data"]["compactness_mean"],
-                contours_data["train_data"]["perimeter_mean"],
-                contours_data["train_data"]["concavity_mean"],
-                contours_data["train_data"]["radius_mean"], 
-                0
-            )
-            predictionData = handlePrediction(patient_data)
-            patient_data.risk_score = predictionData["random_forest"]["risk"]
-            patient_data.prediction = predictionData["random_forest"]["prediction"]
-            patient_data.prediction_lr = predictionData["logistic_regression"]["prediction"]
-            patient_data.risk_score_lr = predictionData["logistic_regression"]["risk"]
-            patient_data.risk_label = get_risk_label(patient_data.risk_score)
-            patient_data.finalConsensus = predictionData["final_consensus"]
-            
-            
-            llm_result = generate_medical_report(patient_data.model_dump())
-            patient_data.llm_explanation = llm_result["report"]
-            # Você pode salvar llm_result["evaluation"] no seu banco/log se desejar demonstrar a qualidade
-            print(f"Qualidade do Laudo: {llm_result['evaluation']}")
-            
-            # Visualização de Debug
-            get_file(
-                patient_data.file_name, 
-                amostra, 
-                contours_data["train_data"]["max_contour"]
-            )
+        if not contours:
+            raise HTTPException(status_code=422, detail="Nenhum contorno foi encontrado na imagem.")
+
+        contours_data = get_contours_data(contours, amostra.shape)
+        if contours_data["train_data"].get("max_contour") is None:
+            raise HTTPException(status_code=422, detail="Nenhum contorno válido foi encontrado na imagem.")
+
+        safe_filename = Path(file.filename or "amostra.png").name
+        patient_data = convert_to_dto(
+            patient_name,
+            patient_id,
+            safe_filename,
+            contours_data["train_data"]["area_mean"],
+            contours_data["train_data"]["compactness_mean"],
+            contours_data["train_data"]["perimeter_mean"],
+            contours_data["train_data"]["concavity_mean"],
+            contours_data["train_data"]["radius_mean"],
+            0,
+        )
+        predictionData = handlePrediction(patient_data)
+        patient_data.risk_score = predictionData["random_forest"]["risk"]
+        patient_data.prediction = predictionData["random_forest"]["prediction"]
+        patient_data.prediction_lr = predictionData["logistic_regression"]["prediction"]
+        patient_data.risk_score_lr = predictionData["logistic_regression"]["risk"]
+        patient_data.risk_label = get_risk_label(patient_data.risk_score)
+        patient_data.finalConsensus = predictionData["final_consensus"]
+
+        llm_result = generate_medical_report(patient_data.model_dump())
+        patient_data.llm_explanation = llm_result["report"]
+        logger.info("Qualidade do laudo: %s", llm_result["evaluation"])
+
+        get_file(
+            patient_data.file_name,
+            amostra,
+            contours_data["train_data"]["max_contour"],
+        )
   
         return {
             "name": patient_data.name,
@@ -195,6 +261,8 @@ async def analyze_cell(
         }
         
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
     finally:

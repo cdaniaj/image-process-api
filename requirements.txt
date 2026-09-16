@@ -40,3 +40,9 @@ joblib==1.4.2
 seaborn==0.13.2
 google-generativeai>=0.8.0
 prometheus-fastapi-instrumentator==7.0.0
+langchain-core>=0.3.0
+langchain-google-genai>=2.0.0
+faiss-cpu>=1.8.0
+pytest>=8.0.0
+langgraph>=0.2.0
+pdfplumber==0.11.8
