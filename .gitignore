@@ -1,0 +1,42 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# macOS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Test and tooling caches
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Environment files
+.env
+
+# Generated model artifacts and evaluation images
+*.pkl
+*.joblib
+feature_importance.png
+matriz_lr.png
+matriz_rf.png
+
+# Runtime logs and generated outputs
+logs/*
+outputfile/gerados/*
+data_extraction/gerados/*
+resultados_imagens/*
+
+# Fine-tuning checkpoints and local adapter outputs
+fine_tunning/model_output/checkpoint-*/
+fine_tunning/model_output/adapter/*

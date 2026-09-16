@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 import torch
+
+
+logger = logging.getLogger("image-process-api")
 
 # Força o uso de uma única thread no PyTorch para evitar falhas de segmentação (SIGSEGV/EXC_BAD_ACCESS) no macOS/OpenMP
 torch.set_num_threads(1)
@@ -17,7 +21,15 @@ def _generate_with_gemini(prompt: str) -> str:
     # O import tardio permite iniciar a API mesmo quando o provider opcional não está instalado.
     from langchain_google_genai import ChatGoogleGenerativeAI
 
-    model = ChatGoogleGenerativeAI(model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"), temperature=0.2)
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY não configurada para o provider Gemini.")
+
+    model = ChatGoogleGenerativeAI(
+        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        google_api_key=api_key,
+        temperature=0.2,
+    )
     result = model.invoke(prompt)
     return result.content if isinstance(result.content, str) else str(result.content)
 
@@ -30,7 +42,8 @@ def _try_gemini_safely(prompt: str) -> str | None:
         return None
     try:
         return _generate_with_gemini(prompt)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Gemini indisponível; usando fallback controlado: %s", exc)
         return None
 
 
@@ -390,6 +403,7 @@ def generate_assistant_response(prompt: str) -> tuple[str | None, str]:
     
     try:
         return _generate_with_gemini(prompt), "gemini"
-    except Exception:
+    except Exception as exc:
         # Falhas de credencial ou rede não interrompem o fluxo: o grafo usa sua resposta determinística.
+        logger.warning("Falha no provider Gemini; usando fallback controlado: %s", exc)
         return None, "fallback"
