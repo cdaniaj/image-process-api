@@ -1,0 +1,8 @@
+# Dependências opcionais para treinar ou executar o adaptador local PEFT/QLoRA.
+# O backend padrão usa Gemini e não precisa instalar este arquivo.
+torch>=2.4.0
+transformers>=4.45.0
+peft>=0.13.0
+datasets>=3.0.0
+accelerate>=1.0.0
+bitsandbytes<=0.41.3

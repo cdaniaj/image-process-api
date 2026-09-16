@@ -45,3 +45,11 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("image-process-api")
+
+
+def mask_identifier(value: str, visible: int = 4) -> str:
+    """Mascara um identificador (ex.: patient_id) para uso seguro em logs, conforme LGPD."""
+    value = str(value or "")
+    if len(value) <= visible:
+        return "*" * len(value)
+    return "*" * (len(value) - visible) + value[-visible:]

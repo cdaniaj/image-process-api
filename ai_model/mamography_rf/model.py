@@ -18,6 +18,7 @@ import seaborn as sns
 import time
 from observability.logger import logger
 from ai_model.mamography_rf.genetic_optimizer import GeneticOptimizer
+from data_extraction.extraction import load_training_data
 
 
 MODEL_PATHS = {
@@ -25,14 +26,17 @@ MODEL_PATHS = {
     "scaler": "scaler.pkl",
     "lr": "logistic_model.pkl",
 }
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+ARTIFACT_DIR = os.getenv("IMAGE_PROCESS_MODEL_DIR")
 
 
 def _resolve_model_path(name: str) -> str:
-    return os.path.join(os.getcwd(), MODEL_PATHS[name])
+    artifact_dir = ARTIFACT_DIR or os.getcwd()
+    return os.path.join(artifact_dir, MODEL_PATHS[name])
 
 
 def models_exist() -> bool:
-    required_files = [MODEL_PATHS["rf"], MODEL_PATHS["scaler"], MODEL_PATHS["lr"]]
+    required_files = [_resolve_model_path("rf"), _resolve_model_path("scaler"), _resolve_model_path("lr")]
     return all(os.path.exists(path) for path in required_files)
 
 
@@ -60,11 +64,12 @@ def handleLearning():
     logger.info("🚀 [START] Iniciando o pipeline completo de treinamento (/model)...")
     inicio_pipeline = time.time()
     
-    #Leitura e tratamento dos dados
-    df = pd.read_csv('data.csv')
+    # Leitura unificada do dataset legado e das confirmações da API.
+    df = load_training_data()
     
     cols_validar = ['area_mean', 'compactness_mean', 'perimeter_mean', 'concavity_mean', 'radius_mean']
     for col in cols_validar:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
         mediana = df[col].median()
         df.loc[df[col] <= 0, col] = mediana
     
@@ -76,7 +81,13 @@ def handleLearning():
     if df['diagnosis'].dtype == object:
         y_completo = df['diagnosis'].map({'M': 1, 'B': 0})
     else:
-        y_completo = df['diagnosis']
+        y_completo = pd.to_numeric(df['diagnosis'], errors='coerce')
+
+    valid_rows = y_completo.notna() & y_completo.isin([0, 1])
+    if valid_rows.sum() < 4 or y_completo[valid_rows].nunique() < 2:
+        raise ValueError("São necessárias pelo menos quatro amostras válidas com as classes 0 e 1 para treinar.")
+    X_completo = X_completo.loc[valid_rows]
+    y_completo = y_completo.loc[valid_rows].astype(int)
     
     X_train, X_test, y_train, y_test = train_test_split(X_completo, y_completo, test_size=0.2, random_state=42)   
      
@@ -135,8 +146,7 @@ def handleLearning():
     y_pred_lr = lr_model.predict(X_test_scaled)
     f1_otimizado = f1_score(y_test, y_pred, average='binary')
     
-    print("\n=== RELATÓRIO DE CLASSIFICAÇÃO RANDOM FOREST (OTIMIZADO AM) ===")
-    print(classification_report(y_test, y_pred))
+    logger.info("Relatório de classificação RF:\n%s", classification_report(y_test, y_pred))
 
     ganho_f1 = f1_otimizado - f1_baseline
     logger.info(f"📊 [COMPARAÇÃO OBRIGATÓRIA] F1 Baseline: {f1_baseline:.4f} vs F1 Otimizado: {f1_otimizado:.4f} | Ganho Líquido: {ganho_f1:+.4f}")
@@ -153,9 +163,10 @@ def handleLearning():
     plt.savefig('matriz_lr.png') 
     
     #EXPORTAÇÃO
-    joblib.dump(rfc, 'trained_model.pkl')
-    joblib.dump(scaler, 'scaler.pkl')
-    joblib.dump(lr_model, 'logistic_model.pkl')
+    os.makedirs(ARTIFACT_DIR or os.getcwd(), exist_ok=True)
+    joblib.dump(rfc, _resolve_model_path("rf"))
+    joblib.dump(scaler, _resolve_model_path("scaler"))
+    joblib.dump(lr_model, _resolve_model_path("lr"))
     
     importances = rfc.feature_importances_
     feature_names = ['area_mean', 'compactness_mean', 'perimeter_mean', 'concavity_mean', 'radius_mean']
@@ -202,7 +213,7 @@ def handlePrediction(patient_data: PatientDiagnosticModel):
     if pred_rf == 0 and pred_lr == 0: consensus = 0
     
     coeficientes = pd.DataFrame(modelo_lr.coef_, columns=['area_mean', 'compactness_mean', 'perimeter_mean', 'concavity_mean', 'radius_mean'])
-    print("Pesos da Regressão Logística:\n", coeficientes)
+    logger.info("Pesos da Regressão Logística:\n%s", coeficientes)
 
     return {
         "random_forest": {"prediction": int(pred_rf), "risk": round(prob_rf, 2)},

@@ -1,0 +1,5 @@
+patient_name,patient_id,filename,area_mean,compactness_mean,perimeter_mean,concavity_mean,radius_mean,diagnosis,risk_score,risk_label,prediction,prediction_lr,risk_score_lr
+t1,t1,1-195.jpg,410.5,13.139,76.184,0.02,12.664,2,,,,,
+Fatima,#001,1-195.jpg,412.5,13.07,76.184,0.019,12.816,2,23.73,no_risk,0.0,1.0,100.0
+Fatima,#001,1-195.jpg,402.5,13.108,75.355,0.019,12.62,2,19.73,no_risk,0.0,1.0,100.0
+Fatima,#001,1-195.jpg,410.5,13.139,76.184,0.02,12.664,2,16.36,no_risk,0,1.0,100.0
